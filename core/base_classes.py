@@ -19,6 +19,11 @@ class IDataProcessor(ABC):
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Preprocess the data"""
         pass
+    
+    @abstractmethod
+    def calculate_statistics(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate statistics for the data"""
+        pass
 
 
 class IModelManager(ABC):
@@ -33,6 +38,41 @@ class IModelManager(ABC):
     def predict(self, input_data: Dict[str, float]) -> Tuple[int, np.ndarray, str]:
         """Make predictions using trained models"""
         pass
+    
+    @abstractmethod
+    def get_best_model(self) -> Tuple[str, Any]:
+        """Get the best performing model"""
+        pass
+
+
+class IVisualizer(ABC):
+    """Interface for visualization operations"""
+    
+    @abstractmethod
+    def create_chart(self, chart_type: str, data: Any, **kwargs) -> Any:
+        """Create a chart of specified type"""
+        pass
+
+
+class BaseAnalyzer(ABC):
+    """Base class for data analyzers"""
+    
+    def __init__(self, name: str):
+        self.name = name
+        self._results = {}
+    
+    @abstractmethod
+    def analyze(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """Perform analysis on data"""
+        pass
+    
+    def get_results(self) -> Dict[str, Any]:
+        """Get analysis results"""
+        return self._results
+    
+    def clear_results(self) -> None:
+        """Clear stored results"""
+        self._results = {}
 
 
 class BaseModel(ABC):
@@ -54,6 +94,24 @@ class BaseModel(ABC):
     def train(self, X: pd.DataFrame, y: pd.Series) -> None:
         """Train the model"""
         pass
+    
+    @abstractmethod
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions"""
+        pass
+    
+    @abstractmethod
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Get prediction probabilities"""
+        pass
+    
+    def get_performance_metrics(self) -> Dict[str, float]:
+        """Get model performance metrics"""
+        return self.performance_metrics
+    
+    def set_performance_metrics(self, metrics: Dict[str, float]) -> None:
+        """Set model performance metrics"""
+        self.performance_metrics = metrics
 
 
 class Observer(ABC):
@@ -76,10 +134,25 @@ class Subject:
         if observer not in self._observers:
             self._observers.append(observer)
     
+    def detach(self, observer: Observer) -> None:
+        """Detach an observer"""
+        if observer in self._observers:
+            self._observers.remove(observer)
+    
     def notify(self, event: str, data: Any = None) -> None:
         """Notify all observers"""
         for observer in self._observers:
             observer.update(self, event, data)
+
+
+class Singleton:
+    """Singleton metaclass"""
+    _instances = {}
+    
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 class DataValidator:
@@ -90,12 +163,49 @@ class DataValidator:
         """Validate water quality parameters"""
         errors = []
         
-        if 'ph' in data and not (0 <= data['ph'] <= 14):
-            errors.append("pH must be between 0 and 14")
+        # pH validation
+        if 'ph' in data:
+            if not (0 <= data['ph'] <= 14):
+                errors.append("pH must be between 0 and 14")
         
-        for param in ['Hardness', 'Solids', 'Chloramines', 'Sulfate', 'Conductivity', 
-                      'Organic_carbon', 'Trihalomethanes', 'Turbidity']:
-            if param in data and data[param] < 0:
-                errors.append(f"{param} cannot be negative")
+        # Hardness validation
+        if 'Hardness' in data:
+            if data['Hardness'] < 0:
+                errors.append("Hardness cannot be negative")
+        
+        # Solids validation
+        if 'Solids' in data:
+            if data['Solids'] < 0:
+                errors.append("Total dissolved solids cannot be negative")
+        
+        # Chloramines validation
+        if 'Chloramines' in data:
+            if data['Chloramines'] < 0:
+                errors.append("Chloramines cannot be negative")
+        
+        # Sulfate validation
+        if 'Sulfate' in data:
+            if data['Sulfate'] < 0:
+                errors.append("Sulfate cannot be negative")
+        
+        # Conductivity validation
+        if 'Conductivity' in data:
+            if data['Conductivity'] < 0:
+                errors.append("Conductivity cannot be negative")
+        
+        # Organic carbon validation
+        if 'Organic_carbon' in data:
+            if data['Organic_carbon'] < 0:
+                errors.append("Organic carbon cannot be negative")
+        
+        # Trihalomethanes validation
+        if 'Trihalomethanes' in data:
+            if data['Trihalomethanes'] < 0:
+                errors.append("Trihalomethanes cannot be negative")
+        
+        # Turbidity validation
+        if 'Turbidity' in data:
+            if data['Turbidity'] < 0:
+                errors.append("Turbidity cannot be negative")
         
         return len(errors) == 0, errors
