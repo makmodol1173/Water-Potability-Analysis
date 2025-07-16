@@ -249,3 +249,118 @@ class ModelFactory:
             raise ValueError(f"Unknown model type: {model_type}")
         
         return model_class(model_type.value, **kwargs)
+    
+    # Complete the ModelManager class
+
+def train_models(self, X: pd.DataFrame, y: pd.Series) -> Dict[str, Any]:
+    """Train all available models"""
+    try:
+        self.logger.info("Starting model training")
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=Settings.DATA.test_size,
+            random_state=Settings.DATA.random_state,
+            stratify=y
+        )
+        
+        # Train models
+        model_types = [ModelType.RANDOM_FOREST, ModelType.LOGISTIC_REGRESSION, 
+                      ModelType.SVM, ModelType.GRADIENT_BOOSTING]
+        
+        results = {}
+        
+        for model_type in model_types:
+            self.logger.info(f"Training {model_type.value}")
+            
+            # Create and train model
+            model = ModelFactory.create_model(model_type)
+            model.train(X_train, y_train)
+            
+            # Evaluate model
+            evaluation = ModelEvaluator.evaluate_model(model, X_test, y_test)
+            cv_results = ModelEvaluator.cross_validate_model(model, X_train, y_train)
+            
+            # Store results
+            self.models[model_type.value] = model
+            self.evaluation_results[model_type.value] = {**evaluation, **cv_results}
+            
+            results[model_type.value] = {
+                'model': model,
+                'evaluation': evaluation,
+                'cross_validation': cv_results
+            }
+            
+            self.notify("model_trained", {
+                "model_name": model_type.value,
+                "accuracy": evaluation['accuracy']
+            })
+        
+        # Determine best model
+        self.best_model_name = max(
+            self.evaluation_results.keys(),
+            key=lambda k: self.evaluation_results[k]['accuracy']
+        )
+        
+        self.notify("training_completed", {
+            "best_model": self.best_model_name,
+            "models_trained": len(results)
+        })
+        
+        return results
+        
+    except Exception as e:
+        self.logger.error(f"Error in model training: {e}")
+        raise
+
+def predict(self, input_data: Dict[str, float]) -> Tuple[int, np.ndarray, str]:
+    """Make prediction using best model"""
+    if not self.best_model_name or self.best_model_name not in self.models:
+        raise ValueError("No trained models available")
+    
+    best_model = self.models[self.best_model_name]
+    
+    # Prepare input data
+    input_df = pd.DataFrame([input_data])
+    
+    # Make prediction
+    prediction = best_model.predict(input_df)[0]
+    probabilities = best_model.predict_proba(input_df)[0]
+    
+    return prediction, probabilities, self.best_model_name
+
+def get_model_comparison(self) -> pd.DataFrame:
+    """Get model performance comparison"""
+    comparison_data = []
+    
+    for model_name, results in self.evaluation_results.items():
+        comparison_data.append({
+            'Model': model_name,
+            'Accuracy': f"{results['accuracy']:.4f}",
+            'ROC AUC': f"{results['roc_auc']:.4f}",
+            'CV Score': f"{results['cv_mean']:.4f} ± {results['cv_std']:.4f}"
+        })
+    
+    return pd.DataFrame(comparison_data)
+
+def get_feature_importance(self, model_name: Optional[str] = None) -> Optional[pd.DataFrame]:
+    """Get feature importance for specified model"""
+    if model_name is None:
+        model_name = self.best_model_name
+    
+    if model_name not in self.models:
+        return None
+    
+    model = self.models[model_name]
+    
+    if hasattr(model, 'get_feature_importance'):
+        importance_dict = model.get_feature_importance()
+        importance_df = pd.DataFrame([
+            {'Feature': Settings.get_parameter_display_name(feature), 'Importance': importance}
+            for feature, importance in importance_dict.items()
+        ]).sort_values('Importance', ascending=True)
+        
+        return importance_df
+    
+    return None
