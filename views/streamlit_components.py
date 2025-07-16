@@ -68,57 +68,57 @@ class ParameterInputForm(BaseComponent):
         with col1:
             self.input_values['ph'] = st.number_input(
                 "pH Level", 
-                min_value=0.0, max_value=14.0, value=7.0, step=0.1,
+                min_value=0.0, max_value=14.0, value=7.5, step=0.1,
                 help="Acidity/alkalinity level (0-14)"
             )
             
             self.input_values['Hardness'] = st.number_input(
                 "Hardness (mg/L)", 
-                min_value=0.0, value=180.0, step=1.0,
+                min_value=0.0, value=90.0, step=1.0,
                 help="Mineral content in water"
             )
             
             self.input_values['Solids'] = st.number_input(
                 "Total Dissolved Solids (ppm)", 
-                min_value=0.0, value=15000.0, step=100.0,
+                min_value=0.0, value=320.0, step=100.0,
                 help="Total dissolved solids concentration"
             )
         
         with col2:
             self.input_values['Chloramines'] = st.number_input(
                 "Chloramines (ppm)", 
-                min_value=0.0, value=6.5, step=0.1,
+                min_value=0.0, value=3.5, step=0.1,
                 help="Disinfectant levels"
             )
             
             self.input_values['Sulfate'] = st.number_input(
                 "Sulfate (mg/L)", 
-                min_value=0.0, value=300.0, step=1.0,
+                min_value=0.0, value=200.0, step=1.0,
                 help="Sulfate concentration"
             )
             
             self.input_values['Conductivity'] = st.number_input(
                 "Conductivity (μS/cm)", 
-                min_value=0.0, value=400.0, step=1.0,
+                min_value=0.0, value=380.0, step=1.0,
                 help="Electrical conductivity"
             )
         
         with col3:
             self.input_values['Organic_carbon'] = st.number_input(
                 "Organic Carbon (ppm)", 
-                min_value=0.0, value=12.0, step=0.1,
+                min_value=0.0, value=3.5, step=0.1,
                 help="Organic carbon content"
             )
             
             self.input_values['Trihalomethanes'] = st.number_input(
                 "Trihalomethanes (μg/L)", 
-                min_value=0.0, value=65.0, step=0.1,
+                min_value=0.0, value=50.0, step=0.1,
                 help="Disinfection byproducts"
             )
             
             self.input_values['Turbidity'] = st.number_input(
                 "Turbidity (NTU)", 
-                min_value=0.0, value=3.5, step=0.1,
+                min_value=0.0, value=0.5, step=0.1,
                 help="Water clarity measure"
             )
         
