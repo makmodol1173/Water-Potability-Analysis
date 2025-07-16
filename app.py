@@ -383,7 +383,7 @@ class WaterPotabilityApplication:
         fig = px.imshow(
             correlation_matrix,
             title="Parameter Correlation Heatmap",
-            color_continuous_scale="RdBu",
+            color_continuous_scale="Teal",
             aspect="auto"
         )
         st.plotly_chart(fig, use_container_width=True)
