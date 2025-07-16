@@ -84,3 +84,168 @@ class ModelManager(IModelManager, Subject):
             raise ValueError("No models have been trained")
         
         return self.best_model_name, self.models[self.best_model_name]
+    
+    # Add to existing ml_models.py
+
+class RandomForestModel(BaseModel):
+    """Random Forest model implementation"""
+    
+    def create_model(self) -> RandomForestClassifier:
+        """Create Random Forest model"""
+        return RandomForestClassifier(
+            n_estimators=Settings.MODEL.rf_estimators,
+            random_state=Settings.MODEL.random_state
+        )
+    
+    def train(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Train the Random Forest model"""
+        self.model = self.create_model()
+        self.model.fit(X, y)
+        self.is_trained = True
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        return self.model.predict(X)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Get prediction probabilities"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        return self.model.predict_proba(X)
+    
+    def get_feature_importance(self) -> Dict[str, float]:
+        """Get feature importance"""
+        if not self.is_trained:
+            return {}
+        
+        importance_dict = {}
+        for i, feature in enumerate(Settings.PARAMETERS):
+            importance_dict[feature] = self.model.feature_importances_[i]
+        
+        return importance_dict
+
+
+class LogisticRegressionModel(BaseModel):
+    """Logistic Regression model implementation"""
+    
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+        self.scaler = StandardScaler()
+    
+    def create_model(self) -> LogisticRegression:
+        """Create Logistic Regression model"""
+        return LogisticRegression(
+            random_state=Settings.MODEL.random_state,
+            max_iter=Settings.MODEL.lr_max_iter
+        )
+    
+    def train(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Train the Logistic Regression model"""
+        X_scaled = self.scaler.fit_transform(X)
+        self.model = self.create_model()
+        self.model.fit(X_scaled, y)
+        self.is_trained = True
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Get prediction probabilities"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict_proba(X_scaled)
+
+
+class SVMModel(BaseModel):
+    """Support Vector Machine model implementation"""
+    
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+        self.scaler = StandardScaler()
+    
+    def create_model(self) -> SVC:
+        """Create SVM model"""
+        return SVC(
+            random_state=Settings.MODEL.random_state,
+            kernel='rbf',
+            probability=True
+        )
+    
+    def train(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Train the SVM model"""
+        X_scaled = self.scaler.fit_transform(X)
+        self.model = self.create_model()
+        self.model.fit(X_scaled, y)
+        self.is_trained = True
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Get prediction probabilities"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict_proba(X_scaled)
+
+
+class GradientBoostingModel(BaseModel):
+    """Gradient Boosting model implementation"""
+    
+    def create_model(self) -> GradientBoostingClassifier:
+        """Create Gradient Boosting model"""
+        return GradientBoostingClassifier(
+            n_estimators=100,
+            learning_rate=0.1,
+            random_state=Settings.MODEL.random_state
+        )
+    
+    def train(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Train the Gradient Boosting model"""
+        self.model = self.create_model()
+        self.model.fit(X, y)
+        self.is_trained = True
+    
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Make predictions"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        return self.model.predict(X)
+    
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        """Get prediction probabilities"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        return self.model.predict_proba(X)
+
+
+# Update ModelFactory
+class ModelFactory:
+    """Factory pattern for creating ML models"""
+    
+    @staticmethod
+    def create_model(model_type: ModelType, **kwargs) -> BaseModel:
+        """Create a model based on type"""
+        model_classes = {
+            ModelType.RANDOM_FOREST: RandomForestModel,
+            ModelType.LOGISTIC_REGRESSION: LogisticRegressionModel,
+            ModelType.SVM: SVMModel,
+            ModelType.GRADIENT_BOOSTING: GradientBoostingModel
+        }
+        
+        model_class = model_classes.get(model_type)
+        if model_class is None:
+            raise ValueError(f"Unknown model type: {model_type}")
+        
+        return model_class(model_type.value, **kwargs)
