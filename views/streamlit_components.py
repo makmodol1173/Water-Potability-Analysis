@@ -238,3 +238,148 @@ class ComponentFactory:
     def create_metric_card(title: str, value: str, description: str, color: str = "primary") -> MetricCard:
         """Create metric card"""
         return MetricCard(title, value, description, color)
+    
+    # Add to existing streamlit_components.py
+
+class ChartComponent(BaseComponent):
+    """Base chart component"""
+    
+    def __init__(self, title: str, chart_type: str):
+        super().__init__(title)
+        self.chart_type = chart_type
+    
+    def render(self, data: Any, **kwargs) -> None:
+        """Render chart"""
+        self.render_header()
+        
+        try:
+            chart = self._create_chart(data, **kwargs)
+            st.plotly_chart(chart, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating chart: {e}")
+            self.logger.error(f"Chart creation error: {e}")
+    
+    @abstractmethod
+    def _create_chart(self, data: Any, **kwargs) -> go.Figure:
+        """Create the chart"""
+        pass
+
+
+class PieChartComponent(ChartComponent):
+    """Pie chart component"""
+    
+    def __init__(self, title: str = "Distribution"):
+        super().__init__(title, "pie")
+    
+    def _create_chart(self, data: Dict[str, Any], **kwargs) -> go.Figure:
+        """Create pie chart"""
+        values = kwargs.get('values', [])
+        names = kwargs.get('names', [])
+        colors = kwargs.get('colors', None)
+        
+        fig = px.pie(
+            values=values,
+            names=names,
+            title=self.title,
+            color_discrete_map=colors
+        )
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        return fig
+
+
+class BarChartComponent(ChartComponent):
+    """Bar chart component"""
+    
+    def __init__(self, title: str = "Comparison"):
+        super().__init__(title, "bar")
+    
+    def _create_chart(self, data: pd.DataFrame, **kwargs) -> go.Figure:
+        """Create bar chart"""
+        x_col = kwargs.get('x', data.columns[0])
+        y_col = kwargs.get('y', data.columns[1])
+        color_col = kwargs.get('color', None)
+        
+        fig = px.bar(
+            data,
+            x=x_col,
+            y=y_col,
+            color=color_col,
+            title=self.title
+        )
+        return fig
+
+
+class HistogramComponent(ChartComponent):
+    """Histogram component"""
+    
+    def __init__(self, title: str = "Distribution"):
+        super().__init__(title, "histogram")
+    
+    def _create_chart(self, data: pd.DataFrame, **kwargs) -> go.Figure:
+        """Create histogram"""
+        x_col = kwargs.get('x', data.columns[0])
+        color_col = kwargs.get('color', None)
+        nbins = kwargs.get('nbins', 30)
+        
+        fig = px.histogram(
+            data,
+            x=x_col,
+            color=color_col,
+            title=self.title,
+            nbins=nbins
+        )
+        return fig
+
+
+class AlertManager:
+    """Manages alerts and notifications"""
+    
+    @staticmethod
+    def show_success(message: str, icon: str = "✅") -> None:
+        """Show success alert"""
+        st.success(f"{icon} {message}")
+    
+    @staticmethod
+    def show_warning(message: str, icon: str = "⚠️") -> None:
+        """Show warning alert"""
+        st.warning(f"{icon} {message}")
+    
+    @staticmethod
+    def show_error(message: str, icon: str = "❌") -> None:
+        """Show error alert"""
+        st.error(f"{icon} {message}")
+    
+    @staticmethod
+    def show_info(message: str, icon: str = "ℹ️") -> None:
+        """Show info alert"""
+        st.info(f"{icon} {message}")
+    
+    @staticmethod
+    def show_disclaimer() -> None:
+        """Show prediction disclaimer"""
+        st.info("⚠️ This prediction is based on machine learning analysis and should not replace professional water testing. Always consult certified water quality experts for definitive safety assessments.")
+
+
+# Update ComponentFactory
+class ComponentFactory:
+    """Factory for creating UI components"""
+    
+    @staticmethod
+    def create_metric_card(title: str, value: str, description: str, color: str = "primary") -> MetricCard:
+        """Create metric card"""
+        return MetricCard(title, value, description, color)
+    
+    @staticmethod
+    def create_chart(chart_type: str, title: str = "") -> ChartComponent:
+        """Create chart component"""
+        chart_classes = {
+            'pie': PieChartComponent,
+            'bar': BarChartComponent,
+            'histogram': HistogramComponent
+        }
+        
+        chart_class = chart_classes.get(chart_type)
+        if chart_class is None:
+            raise ValueError(f"Unknown chart type: {chart_type}")
+        
+        return chart_class(title)
