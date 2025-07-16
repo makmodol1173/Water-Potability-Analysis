@@ -80,3 +80,100 @@ class DataProcessor(IDataProcessor, Subject):
         y = df['Potability'].copy()
         
         return X, y
+    
+    # Add to existing data_processor.py
+
+class StatisticalAnalyzer:
+    """Analyzer for statistical metrics"""
+    
+    def __init__(self):
+        self.results = {}
+    
+    def analyze(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """Perform statistical analysis"""
+        results = {
+            'descriptive_stats': self._calculate_descriptive_stats(data),
+            'correlation_analysis': self._calculate_correlations(data),
+            'class_balance': self._analyze_class_balance(data)
+        }
+        self.results = results
+        return results
+    
+    def _calculate_descriptive_stats(self, df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
+        """Calculate descriptive statistics"""
+        stats = {}
+        for param in Settings.PARAMETERS:
+            if param in df.columns:
+                stats[param] = {
+                    'mean': df[param].mean(),
+                    'median': df[param].median(),
+                    'std': df[param].std(),
+                    'min': df[param].min(),
+                    'max': df[param].max(),
+                    'skewness': df[param].skew(),
+                    'kurtosis': df[param].kurtosis()
+                }
+        return stats
+    
+    def _calculate_correlations(self, df: pd.DataFrame) -> Dict[str, float]:
+        """Calculate correlations with target variable"""
+        correlations = {}
+        if 'Potability' in df.columns:
+            for param in Settings.PARAMETERS:
+                if param in df.columns:
+                    correlations[param] = df[param].corr(df['Potability'])
+        return correlations
+    
+    def _analyze_class_balance(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Analyze class balance"""
+        if 'Potability' not in df.columns:
+            return {}
+        
+        class_counts = df['Potability'].value_counts()
+        total_samples = len(df)
+        
+        return {
+            'potable_count': class_counts.get(1, 0),
+            'non_potable_count': class_counts.get(0, 0),
+            'potable_percentage': (class_counts.get(1, 0) / total_samples) * 100,
+            'balance_ratio': class_counts.get(1, 0) / class_counts.get(0, 1) if class_counts.get(0, 0) > 0 else 0
+        }
+
+
+# Add to DataProcessor class
+def calculate_statistics(self, df: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
+    """Calculate comprehensive statistics"""
+    if df is None:
+        df = self.df
+    
+    if df is None:
+        return {}
+    
+    try:
+        analyzer = StatisticalAnalyzer()
+        statistical_results = analyzer.analyze(df)
+        
+        combined_stats = {
+            'basic_info': {
+                'total_samples': len(df),
+                'total_features': len(df.columns),
+            },
+            'statistical_analysis': statistical_results
+        }
+        
+        self.notify("statistics_calculated", combined_stats)
+        return combined_stats
+        
+    except Exception as e:
+        self.logger.error(f"Error calculating statistics: {e}")
+        return {}
+
+def get_correlation_matrix(self, df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+    """Get correlation matrix for parameters"""
+    if df is None:
+        df = self.df
+    
+    if df is None:
+        return pd.DataFrame()
+    
+    return df[Settings.PARAMETERS + ['Potability']].corr()
