@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 import logging
 
 from config.settings import Settings
+from services.prediction_service import PredictionResult, PredictionService
 
 
 class BaseComponent(ABC):
@@ -43,17 +44,10 @@ class MetricCard(BaseComponent):
         color_value = Settings.COLORS.get(self.color, Settings.COLORS['primary'])
         
         st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #f0f2f6 0%, #e8ecf0 100%);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            border-left: 4px solid {color_value};
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 0.5rem 0;
-        ">
-            <h3 style="margin: 0; color: #333;">{self.title}</h3>
-            <h2 style="margin: 0.5rem 0; color: {color_value};">{self.value}</h2>
-            <p style="margin: 0; color: #666;">{self.description}</p>
+        <div class="metric-card" style="border-left-color: {color_value};">
+            <h3>{self.title}</h3>
+            <h2 style="color: {color_value};">{self.value}</h2>
+            <p>{self.description}</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -129,6 +123,14 @@ class ParameterInputForm(BaseComponent):
             )
         
         return self.input_values
+    
+    def load_sample_data(self, sample_type: str) -> None:
+        """Load sample data"""
+        if sample_type in Settings.SAMPLE_DATA:
+            sample_data = Settings.SAMPLE_DATA[sample_type]
+            for key, value in sample_data.items():
+                if key in self.input_values:
+                    st.session_state[f"input_{key}"] = value
 
 
 class PredictionResultDisplay(BaseComponent):
@@ -137,7 +139,7 @@ class PredictionResultDisplay(BaseComponent):
     def __init__(self):
         super().__init__("Prediction Result")
     
-    def render(self, result, **kwargs) -> None:
+    def render(self, result: PredictionResult, **kwargs) -> None:
         """Render prediction result"""
         if result.is_potable:
             self._render_potable_result(result)
@@ -146,17 +148,12 @@ class PredictionResultDisplay(BaseComponent):
         
         # Display additional information
         self._render_confidence_info(result)
+        self._render_model_info(result)
     
-    def _render_potable_result(self, result) -> None:
+    def _render_potable_result(self, result: PredictionResult) -> None:
         """Render potable water result"""
         st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            border-left: 4px solid #28a745;
-            margin: 1rem 0;
-        ">
+        <div class="prediction-result potable">
             <h3>✅ Water is POTABLE</h3>
             <p><strong>Confidence:</strong> {result.confidence:.1%}</p>
             <p><strong>Risk Level:</strong> {result.risk_level}</p>
@@ -164,16 +161,10 @@ class PredictionResultDisplay(BaseComponent):
         </div>
         """, unsafe_allow_html=True)
     
-    def _render_non_potable_result(self, result) -> None:
+    def _render_non_potable_result(self, result: PredictionResult) -> None:
         """Render non-potable water result"""
         st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            border-left: 4px solid #dc3545;
-            margin: 1rem 0;
-        ">
+        <div class="prediction-result non-potable">
             <h3>⚠️ Water is NOT POTABLE</h3>
             <p><strong>Confidence:</strong> {result.confidence:.1%}</p>
             <p><strong>Risk Level:</strong> {result.risk_level}</p>
@@ -181,7 +172,7 @@ class PredictionResultDisplay(BaseComponent):
         </div>
         """, unsafe_allow_html=True)
     
-    def _render_confidence_info(self, result) -> None:
+    def _render_confidence_info(self, result: PredictionResult) -> None:
         """Render confidence information"""
         col1, col2 = st.columns(2)
         
@@ -190,56 +181,38 @@ class PredictionResultDisplay(BaseComponent):
         
         with col2:
             st.metric("Non-Potable Probability", f"{result.probabilities[0]:.1%}")
+    
+    def _render_model_info(self, result: PredictionResult) -> None:
+        """Render model information"""
+        st.info(f"**Model Used:** {result.model_name}")
 
 
-class NavigationManager:
-    """Manages navigation between pages"""
+class ParameterAnalysisTable(BaseComponent):
+    """Parameter analysis table component"""
     
     def __init__(self):
-        self.pages = {}
-        self.current_page = None
+        super().__init__("Parameter Analysis")
     
-    def register_page(self, name: str, render_func: Callable, icon: str = "") -> None:
-        """Register a page"""
-        self.pages[name] = {
-            'render_func': render_func,
-            'icon': icon,
-            'display_name': f"{icon} {name}" if icon else name
-        }
+    def render(self, analysis_df: pd.DataFrame, **kwargs) -> None:
+        """Render parameter analysis table"""
+        self.render_header()
+        
+        # Style the dataframe
+        styled_df = analysis_df.style.apply(self._color_status, subset=['Status'], axis=1)
+        st.dataframe(styled_df, use_container_width=True)
     
-    def render_sidebar_navigation(self) -> str:
-        """Render sidebar navigation"""
-        st.sidebar.title("Navigation")
-        
-        page_options = [page['display_name'] for page in self.pages.values()]
-        selected_display = st.sidebar.selectbox("Choose a section:", page_options)
-        
-        # Find the actual page name
-        for name, page in self.pages.items():
-            if page['display_name'] == selected_display:
-                self.current_page = name
-                return name
-        
-        return list(self.pages.keys())[0] if self.pages else None
-    
-    def render_current_page(self, **kwargs) -> None:
-        """Render the current page"""
-        if self.current_page and self.current_page in self.pages:
-            render_func = self.pages[self.current_page]['render_func']
-            render_func(**kwargs)
+    def _color_status(self, row) -> List[str]:
+        """Color code status column"""
+        status = row['Status']
+        if '✅' in status:
+            return ['background-color: #d4edda']
+        elif '⚠️' in status:
+            return ['background-color: #fff3cd']
+        elif '❌' in status:
+            return ['background-color: #f8d7da']
         else:
-            st.error("Page not found")
+            return ['']
 
-
-class ComponentFactory:
-    """Factory for creating UI components"""
-    
-    @staticmethod
-    def create_metric_card(title: str, value: str, description: str, color: str = "primary") -> MetricCard:
-        """Create metric card"""
-        return MetricCard(title, value, description, color)
-    
-    # Add to existing streamlit_components.py
 
 class ChartComponent(BaseComponent):
     """Base chart component"""
@@ -331,6 +304,69 @@ class HistogramComponent(ChartComponent):
         return fig
 
 
+class ComponentFactory:
+    """Factory for creating UI components"""
+    
+    @staticmethod
+    def create_metric_card(title: str, value: str, description: str, color: str = "primary") -> MetricCard:
+        """Create metric card"""
+        return MetricCard(title, value, description, color)
+    
+    @staticmethod
+    def create_chart(chart_type: str, title: str = "") -> ChartComponent:
+        """Create chart component"""
+        chart_classes = {
+            'pie': PieChartComponent,
+            'bar': BarChartComponent,
+            'histogram': HistogramComponent
+        }
+        
+        chart_class = chart_classes.get(chart_type)
+        if chart_class is None:
+            raise ValueError(f"Unknown chart type: {chart_type}")
+        
+        return chart_class(title)
+
+
+class NavigationManager:
+    """Manages navigation between pages"""
+    
+    def __init__(self):
+        self.pages = {}
+        self.current_page = None
+    
+    def register_page(self, name: str, render_func: Callable, icon: str = "") -> None:
+        """Register a page"""
+        self.pages[name] = {
+            'render_func': render_func,
+            'icon': icon,
+            'display_name': f"{icon} {name}" if icon else name
+        }
+    
+    def render_sidebar_navigation(self) -> str:
+        """Render sidebar navigation"""
+        st.sidebar.title("Navigation")
+        
+        page_options = [page['display_name'] for page in self.pages.values()]
+        selected_display = st.sidebar.selectbox("Choose a section:", page_options)
+        
+        # Find the actual page name
+        for name, page in self.pages.items():
+            if page['display_name'] == selected_display:
+                self.current_page = name
+                return name
+        
+        return list(self.pages.keys())[0] if self.pages else None
+    
+    def render_current_page(self, **kwargs) -> None:
+        """Render the current page"""
+        if self.current_page and self.current_page in self.pages:
+            render_func = self.pages[self.current_page]['render_func']
+            render_func(**kwargs)
+        else:
+            st.error("Page not found")
+
+
 class AlertManager:
     """Manages alerts and notifications"""
     
@@ -358,28 +394,3 @@ class AlertManager:
     def show_disclaimer() -> None:
         """Show prediction disclaimer"""
         st.info("⚠️ This prediction is based on machine learning analysis and should not replace professional water testing. Always consult certified water quality experts for definitive safety assessments.")
-
-
-# Update ComponentFactory
-class ComponentFactory:
-    """Factory for creating UI components"""
-    
-    @staticmethod
-    def create_metric_card(title: str, value: str, description: str, color: str = "primary") -> MetricCard:
-        """Create metric card"""
-        return MetricCard(title, value, description, color)
-    
-    @staticmethod
-    def create_chart(chart_type: str, title: str = "") -> ChartComponent:
-        """Create chart component"""
-        chart_classes = {
-            'pie': PieChartComponent,
-            'bar': BarChartComponent,
-            'histogram': HistogramComponent
-        }
-        
-        chart_class = chart_classes.get(chart_type)
-        if chart_class is None:
-            raise ValueError(f"Unknown chart type: {chart_type}")
-        
-        return chart_class(title)
