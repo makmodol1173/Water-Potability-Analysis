@@ -49,3 +49,8 @@ This will open the application in your web browser, where you can navigate throu
 The dataset used in this project is sourced from a Vercel Blob URL:
 \`\`\`
 https://hebbkx1anhila5yf.public.blob.vercel-storage.com/water_potability_preprocessed-aP2VS7drsoWULn1qmITGHQDpRcDEhe.csv
+
+## Live Link
+
+\`\`\`
+https://water-potability-analysis.streamlit.app
